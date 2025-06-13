@@ -117,47 +117,50 @@
             <div class="my-4 text-center">
               <h1 class="text-uppercase fs-lg-8 fs-6 fw-bolder text-300 lh-1 position-relative z-index-0">Contact</h1>
               <h1 class="fw-bolder text-outlined fs-7 text-white lh-1 mt-n4 position-relative z-index--1">Get in Touch</h1>
-              <form class="my-5 px-3">
-                <div class="row g-3 g-md-5">
-                  <div class="col-md-6">
-                    <div class="card border-0">
-                      <div class="form-floating mb-3">
-                        <input class="form-control form-fotogency-header-control" id="floatingEmail" type="email" placeholder="name@example.com" />
-                        <label for="floatingEmail">Email</label>
-                      </div>
-                      <div class="form-floating mb-3">
-                        <input class="form-control form-fotogency-header-control" id="floatingName" type="text" placeholder="name" />
-                        <label for="floatingName">Your name</label>
-                      </div>
-                      <div class="form-floating mb-3">
-                        <input class="form-control form-fotogency-header-control" id="floatingPhone" type="tel" placeholder="name@example.com" />
-                        <label for="floatingPhone">Phone number</label>
-                      </div>
-                      <div class="form-floating mb-3">
-                        <input class="form-control form-fotogency-header-control" id="floatingLocation" type="text" placeholder="Desired Location" />
-                        <label for="floatingLocation">Desired location</label>
-                      </div>
-                      <div class="form-floating mb-3">
-                        <input class="form-control form-fotogency-header-control text-400" id="floatingDate" type="text" placeholder="Desired Date" />
-                        <label for="floatingDate">Desired Date</label>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="card border-0">
-                      <input class="form-control opacity-0 pb-0 pe-none d-none d-md-block" />
-                      <div class="form-floating mb-3">
-                        <textarea class="form-control form-fotogency-header-control border ps-2 form-fotogency-header-control" id="floatingTextarea" style="height: 210px" placeholder="Leave a comment here"></textarea>
-                        <label class="ps-2" for="floatingTextarea">Message</label>
-                      </div>
-                    
-                    </div>
-                  </div>
-                  <div class="col-12 text-end mt-3">
-                    <button class="btn btn-link text-warning p-0" type="submit"><span class="fw-bolder text-uppercase">Submit</span><img class="ms-3" src="assets/img/icons/long-arrow.png" alt="" /></button>
-                  </div>
-                </div>
-              </form>
+<form action="mailto:prdadhich7@gmail.com" method="POST" enctype="text/plain" class="my-5 px-3">
+  <div class="row g-3 g-md-5">
+    <div class="col-md-6">
+      <div class="card border-0">
+        <div class="form-floating mb-3">
+          <input class="form-control form-fotogency-header-control" name="email" id="floatingEmail" type="email" placeholder="name@example.com" />
+          <label for="floatingEmail">Email</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input class="form-control form-fotogency-header-control" name="name" id="floatingName" type="text" placeholder="name" />
+          <label for="floatingName">Your name</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input class="form-control form-fotogency-header-control" name="phone" id="floatingPhone" type="tel" placeholder="Phone Number" />
+          <label for="floatingPhone">Phone number</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input class="form-control form-fotogency-header-control" name="location" id="floatingLocation" type="text" placeholder="Desired Location" />
+          <label for="floatingLocation">Desired location</label>
+        </div>
+        <div class="form-floating mb-3">
+          <input class="form-control form-fotogency-header-control text-400" name="date" id="floatingDate" type="text" placeholder="Desired Date" />
+          <label for="floatingDate">Desired Date</label>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0">
+        <input class="form-control opacity-0 pb-0 pe-none d-none d-md-block" />
+        <div class="form-floating mb-3">
+          <textarea class="form-control form-fotogency-header-control border ps-2 form-fotogency-header-control" name="message" id="floatingTextarea" style="height: 210px" placeholder="Leave a comment here"></textarea>
+          <label class="ps-2" for="floatingTextarea">Message</label>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 text-end mt-3">
+      <button class="btn btn-link text-warning p-0" type="submit">
+        <span class="fw-bolder text-uppercase">Submit</span>
+        <img class="ms-3" src="assets/img/icons/long-arrow.png" alt="" />
+      </button>
+    </div>
+  </div>
+</form>
+
             </div>
           </div>
         </div>
