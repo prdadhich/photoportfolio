@@ -8,9 +8,12 @@
   </style>
 </head>
 <body>
- <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/OrbitControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/loaders/PLYLoader.js"></script>
+  <!-- Load Three.js core first -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/build/three.min.js"></script>
+  <!-- Then load OrbitControls (adds THREE.OrbitControls) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Then load PLYLoader (adds THREE.PLYLoader) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/loaders/PLYLoader.js"></script>
 
   <script>
     const scene = new THREE.Scene();
@@ -21,10 +24,12 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    // Use THREE.OrbitControls because it attaches to THREE namespace
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const loader = new PLYLoader();
+    // Load your PLY file here — update the path as needed
+    const loader = new THREE.PLYLoader();
     loader.load('models/test.ply', geometry => {
       geometry.computeVertexNormals();
 
