@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PLY Point Cloud Viewer</title>
+  <title>PLY Viewer</title>
   <style>body { margin: 0; overflow: hidden; }</style>
 </head>
-
 <body>
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.module.js';
@@ -13,46 +12,38 @@
     import { PLYLoader } from 'https://cdn.jsdelivr.net/npm/three@0.153.0/examples/jsm/loaders/PLYLoader.js';
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
     camera.position.set(0, 0, 2);
 
-    const renderer = new THREE.WebGLRenderer({antialias: true});
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
     document.body.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // Load your PLY file here — change URL to your actual file location
     const loader = new PLYLoader();
     loader.load('models/test.ply', geometry => {
-      geometry.computeVertexNormals();
-
-      // Create Points material
       const material = new THREE.PointsMaterial({
         size: 0.01,
         vertexColors: geometry.hasAttribute('color'),
         color: 0xffffff,
       });
-
       const points = new THREE.Points(geometry, material);
       scene.add(points);
-    }, undefined, error => {
-      console.error('Error loading PLY:', error);
-    });
+    }, undefined, err => console.error('PLY load error:', err));
 
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
     }
-
     animate();
 
     window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(innerWidth, innerHeight);
     });
   </script>
 </body>
