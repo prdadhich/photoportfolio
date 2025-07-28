@@ -23,7 +23,7 @@
     controls.enableDamping = true;
 
     const loader = new PLYLoader();
-    loader.load('/models/test.ply', geometry => {
+    loader.load('models/test.ply', geometry => {
       const material = new THREE.PointsMaterial({
         size: 0.01,
         vertexColors: geometry.hasAttribute('color'),
