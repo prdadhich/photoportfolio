@@ -11,10 +11,10 @@
   <!-- THREE.js Core -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
 
-  <!-- OrbitControls -->
+  <!-- OrbitControls (global) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/controls/OrbitControls.js"></script>
 
-  <!-- PLYLoader -->
+  <!-- PLYLoader (global) -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/PLYLoader.js"></script>
 
   <script>
@@ -26,10 +26,10 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    const loader = new THREE.PLYLoader();
+    const loader = new PLYLoader();
     loader.load('models/test.ply', geometry => {
       geometry.computeVertexNormals();
 
