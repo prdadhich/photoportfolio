@@ -178,6 +178,11 @@ window.PortfolioScene = class PortfolioScene {
             "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1635_jBiFHuMlo7.jpg"
         ]; // Truncated slightly for performance as a massive monolithic column requires a subset to feel perfectly curated. 
 
+        const aspect = window.innerWidth / window.innerHeight;
+        this.isMobile = aspect < 1.0;
+        this.baseWidth = this.isMobile ? 18 : 28;
+        this.xSpread = this.isMobile ? 0 : 14; // On mobile, keep it more centered/single column-ish
+        
         this.layoutSpacing = 55; // increased units between each photo block to prevent overlap
         this.totalHeight = urls.length * this.layoutSpacing;
 
@@ -193,7 +198,7 @@ window.PortfolioScene = class PortfolioScene {
                 texture.generateMipmaps = false;
                 texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
                 const ratio = texture.image.width / texture.image.height;
-                const baseWidth = 30; // Massive photos
+                const baseWidth = this.baseWidth; 
                 const height = baseWidth / ratio;
 
                 const geometry = new THREE.PlaneGeometry(baseWidth, height, 32, 32);
@@ -239,7 +244,7 @@ window.PortfolioScene = class PortfolioScene {
 
                     // Masonry / Scattered layout
                     // X alternates precisely left and right with a wider minimum gap
-                    const offsetX = (i % 2 === 0 ? 1 : -1) * (14 + Math.random() * 6);
+                    const offsetX = (i % 2 === 0 ? 1 : -1) * (this.xSpread + Math.random() * (this.isMobile ? 4 : 6));
                     // Y goes downwards sequentially, with a tiny random variation
                     const offsetY = -i * this.layoutSpacing - (Math.random() * 5);
                     // Z has deeper parallax to avoid clipping
@@ -272,8 +277,10 @@ window.PortfolioScene = class PortfolioScene {
 
         // Directly set camera position to target since Lenis already dampens the scroll value perfectly
         this.camera.position.y = targetY;
-        this.camera.position.x = Math.sin(targetY * 0.02) * 2;
-        this.camera.position.z = 50 + Math.sin(targetY * 0.015) * 3;
+        
+        // On desktop, add subtle X panning. On mobile, keep it steadier.
+        this.camera.position.x = this.isMobile ? 0 : Math.sin(targetY * 0.02) * 2;
+        this.camera.position.z = 50 + (this.isMobile ? 0 : Math.sin(targetY * 0.015) * 3);
 
         // When scrolling down, fade out the hero image softly so it doesn't overlap later images
         if (this.heroMesh) {
@@ -288,9 +295,23 @@ window.PortfolioScene = class PortfolioScene {
     }
 
     onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        const aspect = window.innerWidth / window.innerHeight;
+        this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Update responsive flags
+        const wasMobile = this.isMobile;
+        this.isMobile = aspect < 1.0;
+        
+        // If we switched major modes (portrait/landscape), we might need to nudge image sizes
+        // In a true "award-winning" site, we might re-init the whole gallery, but for now 
+        // we'll just adjust the camera to fit.
+        if (this.isMobile) {
+            this.camera.position.z = 60; // Push camera back more on mobile to fit the 3D content
+        } else {
+            this.camera.position.z = 50;
+        }
     }
 
     update(velocity, time, mouseX, mouseY) {
