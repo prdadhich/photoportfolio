@@ -27,10 +27,42 @@ class AppController {
             infinite: false,
         });
 
+        const heroOverlay = document.querySelector('.hero-overlay');
+        const endOverlay = document.querySelector('.end-overlay');
+        const hudFooter = document.querySelector('.hud-footer');
+
         this.lenis.on('scroll', (e) => {
             this.scrollVelocity = e.velocity;
             if (window.engine) {
                 window.engine.onScroll(e.scroll, e.limit || 1); 
+            }
+            
+            if (e.limit) {
+                // Top of page mapping (effects heroOverlay)
+                if (heroOverlay) {
+                    let topOpacity = 1;
+                    if (e.scroll > 0) {
+                        topOpacity = 1 - (e.scroll / 500);
+                    }
+                    topOpacity = Math.max(0, Math.min(1, topOpacity));
+                    heroOverlay.style.opacity = topOpacity;
+                    heroOverlay.style.pointerEvents = topOpacity > 0.5 ? 'auto' : 'none';
+                    
+                    if (hudFooter) {
+                        hudFooter.style.opacity = topOpacity; // fade out footer at same time
+                    }
+                }
+                
+                // Bottom of page mapping (effects endOverlay)
+                if (endOverlay) {
+                    let bottomOpacity = 0;
+                    if (e.scroll > e.limit - 800) {
+                        bottomOpacity = 1 - ((e.limit - e.scroll) / 800);
+                    }
+                    bottomOpacity = Math.max(0, Math.min(1, bottomOpacity));
+                    endOverlay.style.opacity = bottomOpacity;
+                    endOverlay.style.pointerEvents = bottomOpacity > 0.5 ? 'auto' : 'none';
+                }
             }
         });
         
