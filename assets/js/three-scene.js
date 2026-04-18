@@ -23,28 +23,34 @@ window.PortfolioScene = class PortfolioScene {
 
         this.meshes = [];
         this.heroMesh = null;
-        
+        this.raycaster = new THREE.Raycaster();
+        this.pointer = new THREE.Vector2();
+
         // Target scroll to smooth it further than lenis if needed, or just use raw scroll
         this.currentScroll = 0;
 
         this.initShaders();
         this.initGallery();
-        
+
         window.addEventListener('resize', this.onResize.bind(this));
     }
 
     initShaders() {
         this.scrollVertexShader = `
             uniform float uVelocity;
+            uniform float uTime;
             varying vec2 vUv;
             void main() {
                 vUv = uv;
                 vec3 pos = position;
                 
                 // Bend the plane based on scroll velocity and vertical position (uv.y)
-                // If scrolling fast, the top or bottom edges bend backwards into space
                 float bend = uVelocity * 0.05 * sin(uv.y * 3.14);
-                pos.z -= bend; 
+                
+                // Time Morphing (organic fluttering when scrolling fast)
+                float organicMorph = sin(pos.x * 0.5 + uTime * 2.0) * cos(pos.y * 0.5 + uTime) * uVelocity * 0.05;
+                
+                pos.z -= bend + organicMorph; 
                 
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
             }
@@ -53,25 +59,62 @@ window.PortfolioScene = class PortfolioScene {
         this.scrollFragmentShader = `
             uniform sampler2D uTexture;
             uniform float uVelocity;
+            uniform float uTime;
+            uniform float uHoverState;
             varying vec2 vUv;
+            
+            // Random noise function
+            float random(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+            }
+
             void main() {
-                // RGB split (Chromatic Aberration) based on velocity
+                vec2 uv = vUv;
+                
+                // 1. Smooth liquid distortion on hover
+                if (uHoverState > 0.0) {
+
+                    float waveX = sin(uv.y * 12.0 + uTime * 3.0);
+                    float waveY = cos(uv.x * 10.0 + uTime * 2.0);
+
+                    uv.x += waveX * 0.015 * uHoverState;
+                    uv.y += waveY * 0.015 * uHoverState;
+                }
+                
+                // 2. Velocity Chromatic Aberration & Hover Blur
                 vec2 rOffset = vec2(0.0, uVelocity * 0.0008);
                 vec2 bOffset = vec2(0.0, -uVelocity * 0.0008);
                 
-                float r = texture2D(uTexture, vUv + rOffset).r;
-                float g = texture2D(uTexture, vUv).g;
-                float b = texture2D(uTexture, vUv + bOffset).b;
+                // If hovering, add an expanding chromatic blur offset
+                if (uHoverState > 0.0) {
+                    rOffset += vec2(0.003 * uHoverState, 0.001 * uHoverState);
+                    bOffset += vec2(-0.003 * uHoverState, -0.001 * uHoverState);
+                }
                 
-                gl_FragColor = vec4(r, g, b, 1.0);
+                float r = texture2D(uTexture, uv + rOffset).r;
+                float g = texture2D(uTexture, uv).g;
+                float b = texture2D(uTexture, uv + bOffset).b;
+                
+                // Optional: Slightly blow out exposure on hover
+                vec4 finalColor = vec4(r, g, b, 1.0);
+                finalColor.rgb += vec3(0.05 * uHoverState);
+                
+                gl_FragColor = finalColor;
             }
         `;
 
         this.heroVertexShader = `
             varying vec2 vUv;
+            uniform float uTime;
             void main() {
                 vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                vec3 pos = position;
+
+                pos.z += sin(pos.x * 0.1 + uTime) * 0.8;
+                pos.z += cos(pos.y * 0.1 + uTime) * 0.8;
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                //gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `;
 
@@ -137,7 +180,7 @@ window.PortfolioScene = class PortfolioScene {
 
         this.layoutSpacing = 55; // increased units between each photo block to prevent overlap
         this.totalHeight = urls.length * this.layoutSpacing;
-        
+
         // Tell main.js how much to scroll based on our 3D space
         if (window.app) {
             window.maxScrollLength = this.totalHeight * 40; // pixel ratio
@@ -146,6 +189,9 @@ window.PortfolioScene = class PortfolioScene {
 
         urls.forEach((url, i) => {
             this.textureLoader.load(url, (texture) => {
+                texture.minFilter = THREE.LinearFilter;
+                texture.generateMipmaps = false;
+                texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
                 const ratio = texture.image.width / texture.image.height;
                 const baseWidth = 30; // Massive photos
                 const height = baseWidth / ratio;
@@ -170,7 +216,7 @@ window.PortfolioScene = class PortfolioScene {
                     this.heroMesh = new THREE.Mesh(heroGeom, heroMat);
                     this.heroMesh.position.set(0, 0, -20); // Push back slightly
                     this.scene.add(this.heroMesh);
-                    
+
                     // Fade in Hero gently
                     gsap.to(this.heroMesh.material.uniforms.uOpacity, { value: 1.0, duration: 4, ease: "power2.out" });
 
@@ -182,25 +228,32 @@ window.PortfolioScene = class PortfolioScene {
                         fragmentShader: this.scrollFragmentShader,
                         uniforms: {
                             uTexture: { value: texture },
-                            uVelocity: { value: 0 }
+                            uVelocity: { value: 0 },
+                            uTime: { value: 0 },
+                            uHoverState: { value: 0 }
                         },
                         transparent: true
                     });
 
                     const mesh = new THREE.Mesh(geometry, material);
-                    
+
                     // Masonry / Scattered layout
                     // X alternates precisely left and right with a wider minimum gap
-                    const offsetX = (i % 2 === 0 ? 1 : -1) * (14 + Math.random() * 6); 
+                    const offsetX = (i % 2 === 0 ? 1 : -1) * (14 + Math.random() * 6);
                     // Y goes downwards sequentially, with a tiny random variation
                     const offsetY = -i * this.layoutSpacing - (Math.random() * 5);
                     // Z has deeper parallax to avoid clipping
-                    const offsetZ = Math.random() * 15 - 10; 
-
+                    //const offsetZ = Math.random() * 15 - 10; 
+                    const offsetZ = -i * 2 + (Math.random() * 4 - 2);
                     mesh.position.set(offsetX, offsetY, offsetZ);
-
+                    mesh.baseX = offsetX;
+                    mesh.baseY = offsetY;
+                    mesh.baseZ = offsetZ;
                     // Add slight random rotation to make them feel floating
+                    //mesh.rotation.z = (Math.random() - 0.5) * 0.1;
                     mesh.rotation.z = (Math.random() - 0.5) * 0.1;
+                    mesh.rotation.y = (Math.random() - 0.5) * 0.4;
+                    mesh.rotation.x = (Math.random() - 0.5) * 0.15;
 
                     this.scene.add(mesh);
                     this.meshes.push(mesh);
@@ -213,18 +266,20 @@ window.PortfolioScene = class PortfolioScene {
         // Map pixel scroll to our 3D Y coordinate space
         // E.g., if scrolled 10%, camera Y should be - (10% of totalHeight)
         const progress = scrollPixels / maxScrollPixels;
-        
+
         // target Y
         const targetY = -(progress * this.totalHeight);
-        
+
         // Directly set camera position to target since Lenis already dampens the scroll value perfectly
         this.camera.position.y = targetY;
+        this.camera.position.x = Math.sin(targetY * 0.02) * 2;
+        this.camera.position.z = 50 + Math.sin(targetY * 0.015) * 3;
 
         // When scrolling down, fade out the hero image softly so it doesn't overlap later images
         if (this.heroMesh) {
             // Push hero up slightly (parallax) and fade it
             this.heroMesh.position.y = targetY * 0.5;
-            
+
             // Fade out within the first 100 units of scroll
             const opacity = Math.max(0, 1 - (Math.abs(targetY) / 100));
             // We can't directly animate transparency of custom shader without an opacity uniform unless we use raw JS or modify the shader
@@ -239,17 +294,42 @@ window.PortfolioScene = class PortfolioScene {
     }
 
     update(velocity, time, mouseX, mouseY) {
+        // Update Raycaster Pointer
+        this.pointer.x = (mouseX / window.innerWidth) * 2 - 1;
+        this.pointer.y = -(mouseY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(this.pointer, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.meshes, false);
+
+        // Find hovered mesh
+        let hoveredMesh = null;
+        if (intersects.length > 0) {
+            hoveredMesh = intersects[0].object;
+            document.body.classList.add('hovering');
+        } else {
+            document.body.classList.remove('hovering');
+        }
+
         // Update uniforms for Archive Images (Velocity Distortion)
         const normalizedVelocity = velocity * 1.5; // Amplification
-        
+        const t = time * 0.001;
+
         this.meshes.forEach(mesh => {
             if (mesh.material.uniforms) {
                 mesh.material.uniforms.uVelocity.value = normalizedVelocity;
+                mesh.material.uniforms.uTime.value = t;
+
+                // Lerp Hover State
+                if (mesh === hoveredMesh) {
+                    mesh.material.uniforms.uHoverState.value += (1.0 - mesh.material.uniforms.uHoverState.value) * 0.15;
+                } else {
+                    mesh.material.uniforms.uHoverState.value += (0.0 - mesh.material.uniforms.uHoverState.value) * 0.1;
+                }
             }
-            
+
             // Subtle floating animation
-            mesh.position.y += Math.sin(time * 0.001 + mesh.position.x) * 0.01;
-            mesh.position.x += Math.cos(time * 0.001 + mesh.position.y) * 0.005;
+            mesh.position.y = mesh.baseY + Math.sin(time * 0.001 + mesh.baseX) * 0.5;
+            mesh.position.x = mesh.baseX + Math.cos(time * 0.001 + mesh.baseY) * 0.2;
         });
 
         // Update uniforms for Hero Image (Liquid Ripple)
