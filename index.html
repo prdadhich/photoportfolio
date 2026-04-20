@@ -4,69 +4,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRATYUSH DADHICH | The Fluid Archive</title>
 
+    <!-- ── SEO ─────────────────────────────────────────────────────── -->
+    <title>Pratyush Dadhich | The Fluid Archive — Photography</title>
+    <meta name="description"
+        content="The Fluid Archive — a spatial photography experience by Pratyush Dadhich. Exploring light, landscape, and human presence through an immersive 3D archive.">
+    <meta name="author" content="Pratyush Dadhich">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://photography.pratyushdadhich.com/">
+
+    <!-- ── Open Graph ───────────────────────────────────────────────── -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://photography.pratyushdadhich.com/">
+    <meta property="og:title" content="The Fluid Archive — Pratyush Dadhich">
+    <meta property="og:description"
+        content="A spatial photography experience. Exploring light, landscape, and human presence through an immersive 3D archive.">
+    <meta property="og:image"
+        content="https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554">
+
+    <!-- ── Twitter Card ─────────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@prdadhich">
+    <meta name="twitter:title" content="The Fluid Archive — Pratyush Dadhich">
+    <meta name="twitter:description"
+        content="A spatial photography experience. Exploring light, landscape, and human presence.">
+    <meta name="twitter:image"
+        content="https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554">
+
+    <!-- ── Favicons ─────────────────────────────────────────────────── -->
+    <link rel="icon" type="image/x-icon" href="assets/img/favicons/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicons/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicons/apple-touch-icon.png">
+    <link rel="manifest" href="assets/img/favicons/site.webmanifest">
+
+    <!-- ── Styles ───────────────────────────────────────────────────── -->
     <link rel="stylesheet" href="assets/css/style.css">
 
-    <!-- Fonts: Playfair Display for elegant serif, Outfit for sleek modern sans -->
+    <!-- ── Fonts ────────────────────────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap"
         rel="stylesheet">
 
-
-    <!-- Lenis for Awwwards-grade Smooth Scroll -->
+    <!-- ── Scripts (CDN) ────────────────────────────────────────────── -->
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
-
-    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-
 </head>
 
 <body>
-    <!-- Custom Cursor -->
-    <div class="cursor-dot"></div>
-    <div class="cursor-ring"></div>
+    <!-- Custom Cursor (hidden on touch via CSS) -->
+    <div class="cursor-dot" aria-hidden="true"></div>
+    <div class="cursor-ring" aria-hidden="true"></div>
 
-    <!-- The WebGL Canvas -->
-    <canvas id="spatial-canvas"></canvas>
+    <!-- Scroll progress line at top -->
+    <div id="scroll-progress" aria-hidden="true"></div>
 
-    <!-- Minimal Overlay UI -->
-    <div class="hud">
+    <!-- Photo caption (location + year on hover) -->
+    <div id="photo-caption" aria-live="polite" aria-atomic="true">
+        <span id="caption-location"></span>
+        <span id="caption-divider" aria-hidden="true">&mdash;</span>
+        <span id="caption-year"></span>
+    </div>
+
+    <!-- WebGL Canvas -->
+    <canvas id="spatial-canvas" aria-label="Interactive 3D photography archive"></canvas>
+
+    <!-- HUD overlay -->
+    <div class="hud" role="banner">
         <header class="hud-header">
-            <h1 class="logo">PRATYUSH DADHICH</h1>
-            <nav>
+            <h1 class="logo">
+                <a href="https://photography.pratyushdadhich.com/" style="color:inherit;text-decoration:none;"
+                    aria-label="Pratyush Dadhich — Main Site">PRATYUSH DADHICH</a>
+            </h1>
+            <nav aria-label="Primary navigation">
                 <a href="about.html" class="nav-elem">EXHIBITION</a>
-                <a href="mailto:hello@example.com" class="nav-elem">INQUIRY</a>
+                <a href="mailto:prdadhich7@gmail.com" class="nav-elem">INQUIRY</a>
             </nav>
         </header>
 
-        <div class="hero-overlay">
-            <h2 class="hero-title">WHERE LIGHT BECOMES <br>MEMORY</h2>
-            <p class="hero-subtitle">SCROLL TO EXPLORE</p>
+        <div class="hero-overlay" aria-live="polite">
+            <h2 class="hero-title">WHERE LIGHT BECOMES<br>MEMORY</h2>
+            <p class="hero-subtitle">SCROLL TO EXPLORE THE ARCHIVE</p>
         </div>
 
-        <div class="end-overlay" style="opacity: 0; pointer-events: none;">
+        <div class="end-overlay" style="opacity:0; pointer-events:none;" aria-hidden="true">
             <h2 class="hero-title">PHOTOGRAPHY BY<br>PRATYUSH DADHICH</h2>
-            <p class="hero-subtitle">END OF ARCHIVE</p>
+            <p class="hero-subtitle">END OF ARCHIVE - <a href="about.html"
+                    style="color:inherit;letter-spacing:inherit;">EXHIBITION →</a></p>
         </div>
 
-        <div class="hud-footer">
-            <div class="scroll-prompt">
-                <span class="indicator"></span>
+        <footer class="hud-footer">
+            <div class="scroll-prompt" aria-label="Scroll indicator">
+                <span class="indicator" aria-hidden="true"></span>
                 <span>DESCENT</span>
             </div>
-            <div class="coordinates">
-                EST. 2026 — VOL. 01
+            <!-- Frame counter: updates live as you scroll through the archive -->
+            <div class="coordinates" aria-live="polite">
+                <span id="frame-counter"></span>
             </div>
-        </div>
+        </footer>
     </div>
 
-    <!-- Scroll proxy to force native scroll height -->
-    <div id="scroll-proxy"></div>
+    <!-- Scroll proxy — height set dynamically by PortfolioScene -->
+    <div id="scroll-proxy" aria-hidden="true"></div>
 
+    <!-- Engine scripts -->
     <script src="assets/js/three-scene.js"></script>
     <script src="assets/js/main.js"></script>
 </body>

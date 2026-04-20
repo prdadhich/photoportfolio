@@ -2,11 +2,11 @@ window.PortfolioScene = class PortfolioScene {
     constructor() {
         this.canvas = document.getElementById('spatial-canvas');
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x000000); // Pitch black
-        this.scene.fog = new THREE.FogExp2(0x000000, 0.015);
+        this.scene.background = new THREE.Color(0x000000);
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.012);
 
         // Perspective Camera
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
         this.camera.position.z = 50;
 
         this.renderer = new THREE.WebGLRenderer({
@@ -21,14 +21,19 @@ window.PortfolioScene = class PortfolioScene {
         this.textureLoader = new THREE.TextureLoader();
         this.textureLoader.setCrossOrigin('anonymous');
 
-        this.meshes = [];
+        this.meshes = [];       // Archive image meshes
         this.heroMesh = null;
         this.raycaster = new THREE.Raycaster();
         this.pointer = new THREE.Vector2();
-
-        // Target scroll to smooth it further than lenis if needed, or just use raw scroll
         this.currentScroll = 0;
+        this._lastHoveredMesh = null; // track hover changes to avoid DOM updates every frame
 
+        // --- Performance: Lazy loading ---
+        this._pendingImages = [];
+        this._frustum = new THREE.Frustum();
+        this._frustumMatrix = new THREE.Matrix4();
+
+        // Shared shader programs (one per type, not per mesh)
         this.initShaders();
         this.initGallery();
 
@@ -36,6 +41,7 @@ window.PortfolioScene = class PortfolioScene {
     }
 
     initShaders() {
+        // --- Archive image shader ---
         this.scrollVertexShader = `
             uniform float uVelocity;
             uniform float uTime;
@@ -43,15 +49,9 @@ window.PortfolioScene = class PortfolioScene {
             void main() {
                 vUv = uv;
                 vec3 pos = position;
-                
-                // Bend the plane based on scroll velocity and vertical position (uv.y)
                 float bend = uVelocity * 0.05 * sin(uv.y * 3.14);
-                
-                // Time Morphing (organic fluttering when scrolling fast)
                 float organicMorph = sin(pos.x * 0.5 + uTime * 2.0) * cos(pos.y * 0.5 + uTime) * uVelocity * 0.05;
-                
-                pos.z -= bend + organicMorph; 
-                
+                pos.z -= bend + organicMorph;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
             }
         `;
@@ -61,60 +61,48 @@ window.PortfolioScene = class PortfolioScene {
             uniform float uVelocity;
             uniform float uTime;
             uniform float uHoverState;
+            uniform float uOpacity;
             varying vec2 vUv;
-            
-            // Random noise function
-            float random(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-            }
 
             void main() {
                 vec2 uv = vUv;
-                
-                // 1. Smooth liquid distortion on hover
-                if (uHoverState > 0.0) {
 
+                // Liquid distortion on hover
+                if (uHoverState > 0.0) {
                     float waveX = sin(uv.y * 12.0 + uTime * 3.0);
                     float waveY = cos(uv.x * 10.0 + uTime * 2.0);
-
                     uv.x += waveX * 0.015 * uHoverState;
                     uv.y += waveY * 0.015 * uHoverState;
                 }
-                
-                // 2. Velocity Chromatic Aberration & Hover Blur
+
+                // Velocity Chromatic Aberration + Hover Blur
                 vec2 rOffset = vec2(0.0, uVelocity * 0.0008);
                 vec2 bOffset = vec2(0.0, -uVelocity * 0.0008);
-                
-                // If hovering, add an expanding chromatic blur offset
                 if (uHoverState > 0.0) {
                     rOffset += vec2(0.003 * uHoverState, 0.001 * uHoverState);
                     bOffset += vec2(-0.003 * uHoverState, -0.001 * uHoverState);
                 }
-                
+
                 float r = texture2D(uTexture, uv + rOffset).r;
                 float g = texture2D(uTexture, uv).g;
                 float b = texture2D(uTexture, uv + bOffset).b;
-                
-                // Optional: Slightly blow out exposure on hover
+
                 vec4 finalColor = vec4(r, g, b, 1.0);
                 finalColor.rgb += vec3(0.05 * uHoverState);
-                
-                gl_FragColor = finalColor;
+                gl_FragColor = vec4(finalColor.rgb, uOpacity);
             }
         `;
 
+        // --- Hero shader ---
         this.heroVertexShader = `
             varying vec2 vUv;
             uniform float uTime;
             void main() {
                 vUv = uv;
                 vec3 pos = position;
-
                 pos.z += sin(pos.x * 0.1 + uTime) * 0.8;
                 pos.z += cos(pos.y * 0.1 + uTime) * 0.8;
-
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-                //gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `;
 
@@ -124,174 +112,357 @@ window.PortfolioScene = class PortfolioScene {
             uniform vec2 uMouse;
             uniform float uOpacity;
             varying vec2 vUv;
-            
+
             void main() {
                 vec2 p = vUv;
-                
-                // Aspect ratio fix for circle (assuming hero is 4:3 roughly)
-                vec2 aspectMouse = uMouse;
-                
-                float dist = distance(p, aspectMouse);
-                
+                float dist = distance(p, uMouse);
                 vec2 offset = vec2(0.0);
                 if (dist < 0.4) {
                     float amplitude = (0.4 - dist) * 0.1;
                     float wave = sin(-dist * 30.0 + uTime * 3.0);
                     offset = vec2(wave * amplitude);
                 }
-                
                 vec4 color = texture2D(uTexture, p + offset);
                 gl_FragColor = vec4(color.rgb, color.a * uOpacity);
+            }
+        `;
+
+        // --- Shared placeholder (grey) for unloaded images ---
+        this.placeholderFragmentShader = `
+            uniform float uOpacity;
+            varying vec2 vUv;
+            void main() {
+                float v = 0.08 + sin(vUv.x * 3.14) * sin(vUv.y * 3.14) * 0.04;
+                gl_FragColor = vec4(v, v, v, uOpacity);
+            }
+        `;
+        this.placeholderVertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `;
     }
 
     initGallery() {
-        const urls = [
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2747%20(7)_FGtI_KVgr.JPG?updatedAt=1749800987624",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2743%20(4)_2X_i5EcCa.JPG?updatedAt=1749800987675",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2741%20(5)_Dr4sjJERtE.JPG?updatedAt=1749800987619",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2614-Enhanced-NR_U80RKhtFi.jpg?updatedAt=1749765888119",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2611-Enhanced-NR_r2dn4xZbQ.jpg?updatedAt=1749765888670",
-            "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2596-Enhanced-NR_VKy1Bqqmx.jpg?updatedAt=1749765892757",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4835_sQRc-ARvL.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4716_bBfga8ZVG.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4661_gGtFv5Rl5.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4789_EzevERgVj.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4765_R7hY2a7YW.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_5036%20(1)_R2tMntxos.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_0886_BtzxX-_qU.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3570_BuzfbhWtx.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3575_6wfUEDtbG.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4424%20(1)_pIvxGwj7MQ.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4420_x9KfCMZweQ.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3519_FKjO9AgJt.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1644_azflEJwra.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1685_jn-mAW4fL.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1059__dX86vUo8.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1677_X0hRYm3TI.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1816_ToA7M0iPd.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1716_jiPTkzLae.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3534_xx--ruHuXT.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3904_Ak_PdiES2.jpg",
-            "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1635_jBiFHuMlo7.jpg"
-        ]; // Truncated slightly for performance as a massive monolithic column requires a subset to feel perfectly curated. 
+        // ─────────────────────────────────────────────────────────────────────
+        // IMAGE ARRAY
+        // • index 0 = hero (always shown full-screen on entry, DO NOT move it)
+        // • section: tag images with a series name; images with the same section
+        //   get a floating label before the first image of that section.
+        //   Use "Placeholder" until you're ready to tag — labels are skipped for it.
+        // ─────────────────────────────────────────────────────────────────────
+        const images = [
+            // ── HERO (index 0 — never change position) ──────────────────────
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554", section: "Placeholder" },
 
+            // ── Archive images ───────────────────────────────────────────────
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2747%20(7)_FGtI_KVgr.JPG?updatedAt=1749800987624", section: "Portrait", location: "Trento, Italy", year: "2025" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2743%20(4)_2X_i5EcCa.JPG?updatedAt=1749800987675", section: "Portrait", location: "Trento, Italy", year: "2025" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2741%20(5)_Dr4sjJERtE.JPG?updatedAt=1749800987619", section: "Portrait", location: "Trento, Italy", year: "2025" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2614-Enhanced-NR_U80RKhtFi.jpg?updatedAt=1749765888119", section: "Portrait", location: "Milan, Italy", year: "2023" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2611-Enhanced-NR_r2dn4xZbQ.jpg?updatedAt=1749765888670", section: "Portrait", location: "Milan, Italy", year: "2023" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2596-Enhanced-NR_VKy1Bqqmx.jpg?updatedAt=1749765892757", section: "Portrait", location: "Milan, Italy", year: "2023" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4577_sqDKt80-3.jpg?updatedAt=1773961966167", section: "Birds", location: "Trento, Italy", year: "2026" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_2464_RKjXy7HoE.jpg?updatedAt=1773962587823", section: "Birds", location: "Trento, Italy", year: "2025" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4835_sQRc-ARvL.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4716_bBfga8ZVG.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4661_gGtFv5Rl5.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4789_EzevERgVj.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4765_R7hY2a7YW.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_5036%20(1)_R2tMntxos.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_0886_BtzxX-_qU.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3570_BuzfbhWtx.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3575_6wfUEDtbG.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2665_tLp9E6ldA.jpg?updatedAt=1749765899443", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4424%20(1)_pIvxGwj7MQ.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2372_8NlQJbouMj.jpg?updatedAt=1749765894296", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2668_ncE2RG3ZV.jpg?updatedAt=1749765902921", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_4420_x9KfCMZweQ.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3519_FKjO9AgJt.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2647_Nu3h1YlOPQ.jpg?updatedAt=1749765904154", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1644_azflEJwra.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1685_jn-mAW4fL.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1059__dX86vUo8.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1677_X0hRYm3TI.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1816_ToA7M0iPd.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1716_jiPTkzLae.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3534_xx--ruHuXT.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_3904_Ak_PdiES2.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/Photography/IMG_1635_jBiFHuMlo7.jpg", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_9492_p8rcx2Dus.jpg?updatedAt=1749801943552", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_7180%20(1)_iXwQrusEc.jpg?updatedAt=1749801943246", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1907_x0zyZNASE.jpg?updatedAt=1749801941097", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2329_QfCDyDTS3.jpg?updatedAt=1749765891133", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2327_ufFeQKb7O.jpg?updatedAt=1749765885191", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2747__-IVrLE82.jpg?updatedAt=1749765186109", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_2742_1EFf97ShB.jpg?updatedAt=1749765185075", section: "Placeholder" },
+            { url: "https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/PXL_20240714_100356796_2g6LvKA8W.jpg?updatedAt=1749801944710", section: "Placeholder" }
+        ];
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Layout constants
+        // ─────────────────────────────────────────────────────────────────────
         const aspect = window.innerWidth / window.innerHeight;
         this.isMobile = aspect < 1.0;
-        this.baseWidth = this.isMobile ? 18 : 28;
-        this.xSpread = this.isMobile ? 0 : 14; // On mobile, keep it more centered/single column-ish
-        
-        this.layoutSpacing = 55; // increased units between each photo block to prevent overlap
-        this.totalHeight = urls.length * this.layoutSpacing;
+        this.baseWidth = this.isMobile ? 16 : 26;
+        this.xSpread = this.isMobile ? 2 : 12;
+        this.layoutSpacing = 50;
 
-        // Tell main.js how much to scroll based on our 3D space
-        if (window.app) {
-            window.maxScrollLength = this.totalHeight * 40; // pixel ratio
-            document.getElementById('scroll-proxy').style.height = window.maxScrollLength + 'px';
-        }
+        // Archive images start at index 1
+        const archiveCount = images.length - 1;
+        // Add 3 extra spacings of travel at the end so the camera physically
+        // moves past all images before reaching max scroll. At ~150 units
+        // above camera, existing fog reduces images to ~15% visibility
+        // — they dissolve naturally without extra opacity logic.
+        this.totalHeight = archiveCount * this.layoutSpacing + this.layoutSpacing * 3;
 
-        urls.forEach((url, i) => {
-            this.textureLoader.load(url, (texture) => {
-                texture.minFilter = THREE.LinearFilter;
-                texture.generateMipmaps = false;
-                texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-                const ratio = texture.image.width / texture.image.height;
-                const baseWidth = this.baseWidth; 
-                const height = baseWidth / ratio;
+        // Expose scroll proxy length before engine is ready
+        const proxyHeight = this.totalHeight * 40;
+        window.maxScrollLength = proxyHeight;
+        const proxy = document.getElementById('scroll-proxy');
+        if (proxy) proxy.style.height = proxyHeight + 'px';
 
-                const geometry = new THREE.PlaneGeometry(baseWidth, height, 32, 32);
+        // ─────────────────────────────────────────────────────────────────────
+        // Build layout — Math.random() for the organic scattered feel
+        // ─────────────────────────────────────────────────────────────────────
 
-                if (i === 0) {
-                    // HERO IMAGE
-                    // Needs to be huge and in the background, filling the screen
-                    const heroGeom = new THREE.PlaneGeometry(100, 100 / ratio, 64, 64);
-                    const heroMat = new THREE.ShaderMaterial({
-                        vertexShader: this.heroVertexShader,
-                        fragmentShader: this.heroFragmentShader,
-                        uniforms: {
-                            uTexture: { value: texture },
-                            uTime: { value: 0 },
-                            uMouse: { value: new THREE.Vector2(0.5, 0.5) },
-                            uOpacity: { value: 0.0 }
-                        },
-                        transparent: true
-                    });
-                    this.heroMesh = new THREE.Mesh(heroGeom, heroMat);
-                    this.heroMesh.position.set(0, 0, -20); // Push back slightly
-                    this.scene.add(this.heroMesh);
+        // Track last seen section to detect transitions
+        let lastSection = null;
+        this._sectionLabels = [];
 
-                    // Fade in Hero gently
-                    gsap.to(this.heroMesh.material.uniforms.uOpacity, { value: 1.0, duration: 4, ease: "power2.out" });
+        images.forEach((image, i) => {
+            if (i === 0) {
+                // ── Hero image — load immediately (always index 0) ──────────
+                this._loadHero(image.url);
+                return;
+            }
 
-                } else {
-                    // ARCHIVE IMAGES
-                    // Custom Shader Material that reacts to velocity
-                    const material = new THREE.ShaderMaterial({
-                        vertexShader: this.scrollVertexShader,
-                        fragmentShader: this.scrollFragmentShader,
-                        uniforms: {
-                            uTexture: { value: texture },
-                            uVelocity: { value: 0 },
-                            uTime: { value: 0 },
-                            uHoverState: { value: 0 }
-                        },
-                        transparent: true
-                    });
+            const archiveIndex = i - 1; // 0-based archive index
 
-                    const mesh = new THREE.Mesh(geometry, material);
+            // Random layout offsets.
+            // CRITICAL: use (archiveIndex + 1) for Y so the first archive
+            // image starts at y ≈ -layoutSpacing, safely BELOW the hero
+            // which sits at y=0. Without +1, archiveIndex=0 gives offsetY≈0,
+            // placing the image directly on top of the hero.
+            const offsetX = (archiveIndex % 2 === 0 ? 1 : -1)
+                * (this.xSpread + Math.random() * (this.isMobile ? 3 : 6));
+            const offsetY = -(archiveIndex + 1) * this.layoutSpacing - (Math.random() * 5);
+            const offsetZ = -archiveIndex * 1.5 + (Math.random() * 4 - 2);
+            const rotZ = (Math.random() - 0.5) * 0.1;
+            const rotY = (Math.random() - 0.5) * 0.35;
+            const rotX = (Math.random() - 0.5) * 0.12;
 
-                    // Masonry / Scattered layout
-                    // X alternates precisely left and right with a wider minimum gap
-                    const offsetX = (i % 2 === 0 ? 1 : -1) * (this.xSpread + Math.random() * (this.isMobile ? 4 : 6));
-                    // Y goes downwards sequentially, with a tiny random variation
-                    const offsetY = -i * this.layoutSpacing - (Math.random() * 5);
-                    // Z has deeper parallax to avoid clipping
-                    //const offsetZ = Math.random() * 15 - 10; 
-                    const offsetZ = -i * 2 + (Math.random() * 4 - 2);
-                    mesh.position.set(offsetX, offsetY, offsetZ);
-                    mesh.baseX = offsetX;
-                    mesh.baseY = offsetY;
-                    mesh.baseZ = offsetZ;
-                    // Add slight random rotation to make them feel floating
-                    //mesh.rotation.z = (Math.random() - 0.5) * 0.1;
-                    mesh.rotation.z = (Math.random() - 0.5) * 0.1;
-                    mesh.rotation.y = (Math.random() - 0.5) * 0.4;
-                    mesh.rotation.x = (Math.random() - 0.5) * 0.15;
+            // ── Section label sprite ───────────────────────────────────────
+            if (image.section !== "Placeholder" && image.section !== lastSection) {
+                lastSection = image.section;
+                const labelMesh = this._createSectionLabel(image.section);
+                const labelY = offsetY + this.layoutSpacing * 0.6;
+                labelMesh.position.set(0, labelY, offsetZ + 2);
+                labelMesh.baseY = labelY;
+                this.scene.add(labelMesh);
+                this._sectionLabels.push({ mesh: labelMesh, baseY: labelY });
+            }
 
-                    this.scene.add(mesh);
-                    this.meshes.push(mesh);
-                }
+            // ── Create placeholder mesh immediately ────────────────────────
+            const defaultAspect = 1.5;
+            const w = this.baseWidth;
+            const h = w / defaultAspect;
+            const geometry = new THREE.PlaneGeometry(w, h, 4, 4);
+            const placeholderMat = new THREE.ShaderMaterial({
+                vertexShader: this.placeholderVertexShader,
+                fragmentShader: this.placeholderFragmentShader,
+                uniforms: { uOpacity: { value: 0.0 } },
+                transparent: true
             });
+
+            const mesh = new THREE.Mesh(geometry, placeholderMat);
+            mesh.position.set(offsetX, offsetY, offsetZ);
+            mesh.rotation.set(rotX, rotY, rotZ);
+            mesh.baseX = offsetX;
+            mesh.baseY = offsetY;
+            mesh.baseZ = offsetZ;
+            mesh._textureLoaded = false;
+            mesh._loading = false;
+            mesh._imageIndex = archiveIndex;
+            // Store caption metadata — add location/year to any image object to enable the caption
+            // Format: { url: "...", section: "Portrait", location: "Dolomiti", year: "2024" }
+            mesh._meta = { location: image.location || '', year: image.year || '' };
+
+            // Fade in placeholder
+            gsap.to(placeholderMat.uniforms.uOpacity, {
+                value: 0.35, duration: 1.5,
+                delay: Math.min(archiveIndex * 0.03, 0.8),
+                ease: 'power2.out'
+            });
+
+            this.scene.add(mesh);
+            this.meshes.push(mesh);
+
+            this._pendingImages.push({ archiveIndex, url: image.url, mesh });
+        });
+
+        // Load the first few images immediately (visible on load)
+        const EAGER_COUNT = 4;
+        this._pendingImages.slice(0, EAGER_COUNT).forEach(p => this._loadTexture(p));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Hero image loader
+    // ─────────────────────────────────────────────────────────────────────────
+    _loadHero(url) {
+        this.textureLoader.load(url, (texture) => {
+            texture.minFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
+            const ratio = texture.image.width / texture.image.height;
+            const heroGeom = new THREE.PlaneGeometry(100, 100 / ratio, 32, 32);
+            const heroMat = new THREE.ShaderMaterial({
+                vertexShader: this.heroVertexShader,
+                fragmentShader: this.heroFragmentShader,
+                uniforms: {
+                    uTexture: { value: texture },
+                    uTime: { value: 0 },
+                    uMouse: { value: new THREE.Vector2(0.5, 0.5) },
+                    uOpacity: { value: 0.0 }
+                },
+                transparent: true
+            });
+            this.heroMesh = new THREE.Mesh(heroGeom, heroMat);
+            this.heroMesh.position.set(0, 0, -20);
+            this.scene.add(this.heroMesh);
+            gsap.to(this.heroMesh.material.uniforms.uOpacity, { value: 1.0, duration: 4, ease: "power2.out" });
         });
     }
 
-    onScroll(scrollPixels, maxScrollPixels) {
-        // Map pixel scroll to our 3D Y coordinate space
-        // E.g., if scrolled 10%, camera Y should be - (10% of totalHeight)
-        const progress = scrollPixels / maxScrollPixels;
+    // ─────────────────────────────────────────────────────────────────────────
+    // Lazy texture loader — swaps placeholder shader for real image shader
+    // ─────────────────────────────────────────────────────────────────────────
+    _loadTexture(pending) {
+        if (pending.mesh._loading || pending.mesh._textureLoaded) return;
+        pending.mesh._loading = true;
 
-        // target Y
+        this.textureLoader.load(pending.url, (texture) => {
+            texture.minFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
+            texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 4);
+
+            const mesh = pending.mesh;
+            const ratio = texture.image.width / texture.image.height;
+            const w = this.baseWidth;
+            const h = w / ratio;
+
+            // Rebuild geometry with correct aspect ratio
+            mesh.geometry.dispose();
+            mesh.geometry = new THREE.PlaneGeometry(w, h, 6, 6);
+
+            // Grab current opacity before disposing
+            const currentOpacity = mesh.material.uniforms.uOpacity.value;
+            mesh.material.dispose();
+
+            mesh.material = new THREE.ShaderMaterial({
+                vertexShader: this.scrollVertexShader,
+                fragmentShader: this.scrollFragmentShader,
+                uniforms: {
+                    uTexture: { value: texture },
+                    uVelocity: { value: 0 },
+                    uTime: { value: 0 },
+                    uHoverState: { value: 0 },
+                    uOpacity: { value: currentOpacity }
+                },
+                transparent: true
+            });
+
+            // Fade in from placeholder opacity to full
+            gsap.to(mesh.material.uniforms.uOpacity, { value: 1.0, duration: 1.2, ease: 'power2.out' });
+            mesh._textureLoaded = true;
+            mesh._loading = false;
+        }, undefined, () => {
+            // On error, reset so it can be retried
+            pending.mesh._loading = false;
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Section label — canvas-rendered text as a sprite in 3D space
+    // ─────────────────────────────────────────────────────────────────────────
+    _createSectionLabel(text) {
+        const canvas = document.createElement('canvas');
+        const dpr = Math.min(window.devicePixelRatio, 2);
+        canvas.width = 512 * dpr;
+        canvas.height = 80 * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // Background line
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 40);
+        ctx.lineTo(512, 40);
+        ctx.stroke();
+
+        // Label text
+        ctx.font = '300 11px "Outfit", sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.letterSpacing = '0.25em';
+        ctx.fillText('— ' + text.toUpperCase(), 16, 44);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        const mat = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false
+        });
+        const sprite = new THREE.Sprite(mat);
+        // Scale: canvas is 512×80, map to world units
+        const scaleX = this.isMobile ? 18 : 28;
+        sprite.scale.set(scaleX, scaleX * (80 / 512), 1);
+
+        // Fade in
+        gsap.to(mat, { opacity: 1.0, duration: 1.5, ease: 'power2.out' });
+
+        return sprite;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Scroll handler — called by main.js Lenis callback
+    // ─────────────────────────────────────────────────────────────────────────
+    onScroll(scrollPixels, maxScrollPixels) {
+        const progress = scrollPixels / maxScrollPixels;
         const targetY = -(progress * this.totalHeight);
 
-        // Directly set camera position to target since Lenis already dampens the scroll value perfectly
         this.camera.position.y = targetY;
-        
-        // On desktop, add subtle X panning. On mobile, keep it steadier.
-        this.camera.position.x = this.isMobile ? 0 : Math.sin(targetY * 0.02) * 2;
-        this.camera.position.z = 50 + (this.isMobile ? 0 : Math.sin(targetY * 0.015) * 3);
+        this.camera.position.x = this.isMobile ? 0 : Math.sin(targetY * 0.02) * 1.5;
+        this.camera.position.z = 50 + (this.isMobile ? 0 : Math.sin(targetY * 0.015) * 2.5);
 
-        // When scrolling down, fade out the hero image softly so it doesn't overlap later images
         if (this.heroMesh) {
-            // Push hero up slightly (parallax) and fade it
             this.heroMesh.position.y = targetY * 0.5;
-
-            // Fade out within the first 100 units of scroll
-            const opacity = Math.max(0, 1 - (Math.abs(targetY) / 100));
-            // We can't directly animate transparency of custom shader without an opacity uniform unless we use raw JS or modify the shader
-            // For now, let's just push it way into the background (-Z) to hide it or keep it simple.
+            const heroOpacity = Math.max(0, 1 - (Math.abs(targetY) / 35));
+            this.heroMesh.material.uniforms.uOpacity.value = heroOpacity;
         }
+
+        this._checkLazyLoad(targetY);
+        this._updateFrameCounter(targetY);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Lazy load: load textures for images within a lookahead window
+    // ─────────────────────────────────────────────────────────────────────────
+    _checkLazyLoad(cameraY) {
+        const LOOKAHEAD = this.layoutSpacing * 5; // load 5 images ahead
+        const camAbsY = Math.abs(cameraY);
+
+        this._pendingImages.forEach(pending => {
+            if (pending.mesh._textureLoaded || pending.mesh._loading) return;
+            const meshAbsY = Math.abs(pending.mesh.baseY);
+            if (meshAbsY - camAbsY < LOOKAHEAD) {
+                this._loadTexture(pending);
+            }
+        });
     }
 
     onResize() {
@@ -299,30 +470,27 @@ window.PortfolioScene = class PortfolioScene {
         this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        
-        // Update responsive flags
+
         const wasMobile = this.isMobile;
         this.isMobile = aspect < 1.0;
-        
-        // If we switched major modes (portrait/landscape), we might need to nudge image sizes
-        // In a true "award-winning" site, we might re-init the whole gallery, but for now 
-        // we'll just adjust the camera to fit.
-        if (this.isMobile) {
-            this.camera.position.z = 60; // Push camera back more on mobile to fit the 3D content
-        } else {
-            this.camera.position.z = 50;
-        }
+        this.camera.position.z = this.isMobile ? 60 : 50;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Main update — called every frame from main.js render loop
+    // ─────────────────────────────────────────────────────────────────────────
     update(velocity, time, mouseX, mouseY) {
-        // Update Raycaster Pointer
-        this.pointer.x = (mouseX / window.innerWidth) * 2 - 1;
-        this.pointer.y = -(mouseY / window.innerHeight) * 2 + 1;
+        // Raycaster — use matchMedia(pointer:coarse) as the touch guard,
+        // same as CSS uses. _isTouch via maxTouchPoints is unreliable on Windows
+        // (reports >0 even on pure mouse machines), silently killing hover effects.
+        const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+        if (!isCoarsePointer) {
+            this.pointer.x = (mouseX / window.innerWidth) * 2 - 1;
+            this.pointer.y = -(mouseY / window.innerHeight) * 2 + 1;
+            this.raycaster.setFromCamera(this.pointer, this.camera);
+        }
 
-        this.raycaster.setFromCamera(this.pointer, this.camera);
-        const intersects = this.raycaster.intersectObjects(this.meshes, false);
-
-        // Find hovered mesh
+        const intersects = isCoarsePointer ? [] : this.raycaster.intersectObjects(this.meshes, false);
         let hoveredMesh = null;
         if (intersects.length > 0) {
             hoveredMesh = intersects[0].object;
@@ -331,40 +499,102 @@ window.PortfolioScene = class PortfolioScene {
             document.body.classList.remove('hovering');
         }
 
-        // Update uniforms for Archive Images (Velocity Distortion)
-        const normalizedVelocity = velocity * 1.5; // Amplification
+        const normalizedVelocity = velocity * 1.5;
         const t = time * 0.001;
 
-        this.meshes.forEach(mesh => {
-            if (mesh.material.uniforms) {
-                mesh.material.uniforms.uVelocity.value = normalizedVelocity;
-                mesh.material.uniforms.uTime.value = t;
+        // ── Frustum culling: skip updates for off-screen meshes ────────────
+        this._frustumMatrix.multiplyMatrices(
+            this.camera.projectionMatrix,
+            this.camera.matrixWorldInverse
+        );
+        this._frustum.setFromProjectionMatrix(this._frustumMatrix);
 
-                // Lerp Hover State
-                if (mesh === hoveredMesh) {
-                    mesh.material.uniforms.uHoverState.value += (1.0 - mesh.material.uniforms.uHoverState.value) * 0.15;
-                } else {
-                    mesh.material.uniforms.uHoverState.value += (0.0 - mesh.material.uniforms.uHoverState.value) * 0.1;
+        this.meshes.forEach(mesh => {
+            // Skip floating animation & uniform updates for far-away meshes
+            const inView = this._frustum.intersectsObject(mesh);
+
+            if (inView && mesh.material.uniforms) {
+                mesh.material.uniforms.uVelocity && (mesh.material.uniforms.uVelocity.value = normalizedVelocity);
+                mesh.material.uniforms.uTime && (mesh.material.uniforms.uTime.value = t);
+
+                if (mesh.material.uniforms.uHoverState) {
+                    if (mesh === hoveredMesh) {
+                        mesh.material.uniforms.uHoverState.value += (1.0 - mesh.material.uniforms.uHoverState.value) * 0.15;
+                    } else {
+                        mesh.material.uniforms.uHoverState.value += (0.0 - mesh.material.uniforms.uHoverState.value) * 0.1;
+                    }
                 }
             }
 
-            // Subtle floating animation
-            mesh.position.y = mesh.baseY + Math.sin(time * 0.001 + mesh.baseX) * 0.5;
-            mesh.position.x = mesh.baseX + Math.cos(time * 0.001 + mesh.baseY) * 0.2;
+            // Subtle floating animation — only for meshes near camera
+            if (inView) {
+                mesh.position.y = mesh.baseY + Math.sin(time * 0.0007 + mesh.baseX) * 0.4;
+                mesh.position.x = mesh.baseX + Math.cos(time * 0.0007 + mesh.baseY) * 0.15;
+            }
         });
 
-        // Update uniforms for Hero Image (Liquid Ripple)
+        // Hero shader update
         if (this.heroMesh) {
-            // Map Mouse to UV (0 to 1) 
-            // The plane is centered. We need to map screen mouse to the plane UV.
             const uX = mouseX / window.innerWidth;
-            const uY = 1.0 - (mouseY / window.innerHeight); // Y is flipped in UV
-
+            const uY = 1.0 - (mouseY / window.innerHeight);
             this.heroMesh.material.uniforms.uMouse.value.set(uX, uY);
-            // Three.js time is usually very large, so pass time / 1000 to keep it manageable
             this.heroMesh.material.uniforms.uTime.value = time * 0.002;
+        }
+
+        // Update caption only when hovered mesh changes (not every frame)
+        if (hoveredMesh !== this._lastHoveredMesh) {
+            this._lastHoveredMesh = hoveredMesh;
+            this._updateCaption(hoveredMesh);
         }
 
         this.renderer.render(this.scene, this.camera);
     }
-}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Photo caption: shows location + year when hovering an archive image
+    // ─────────────────────────────────────────────────────────────────────────
+    _updateCaption(mesh) {
+        const caption = document.getElementById('photo-caption');
+        if (!caption) return;
+
+        if (mesh && mesh._meta) {
+            const { location, year } = mesh._meta;
+            // Only show if at least one field is filled
+            if (location || year) {
+                const locEl = document.getElementById('caption-location');
+                const yearEl = document.getElementById('caption-year');
+                if (locEl) locEl.textContent = location.toUpperCase();
+                if (yearEl) yearEl.textContent = year;
+                caption.classList.add('visible');
+            } else {
+                caption.classList.remove('visible');
+            }
+        } else {
+            caption.classList.remove('visible');
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Frame counter: updates the HUD footer as camera descends through archive
+    // ─────────────────────────────────────────────────────────────────────────
+    _updateFrameCounter(targetY) {
+        const counter = document.getElementById('frame-counter');
+        if (!counter || this.meshes.length === 0) return;
+
+        const total = this.meshes.length;
+        const progress = Math.abs(targetY) / this.totalHeight;
+        const frame = Math.min(Math.round(progress * total) + 1, total);
+
+        if (Math.abs(targetY) < 8) {
+            // At the top (hero visible) — show the volume label
+            counter.textContent = 'VOL. I';
+        } else if (progress >= 0.97) {
+            // At the end — show volume label again
+            counter.textContent = 'VOL. I — 2026';
+        } else {
+            // Scrolling through the archive — show live frame position
+            const pad = (n) => String(n).padStart(2, '0');
+            counter.textContent = `${pad(frame)} / ${pad(total)}`;
+        }
+    }
+};

@@ -1,114 +1,514 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRATYUSH DADHICH | Exhibition</title>
 
-    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- ── SEO ─────────────────────────────────────────────────────── -->
+    <title>Exhibition - Pratyush Dadhich | The Fluid Archive</title>
+    <meta name="description"
+        content="Pratyush Dadhich — Spatial Designer, XR Builder, and photographer based in Italy. This is the visual archive alongside his work in immersive systems and experimental tools.">
+    <meta name="author" content="Pratyush Dadhich">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://photography.pratyushdadhich.com/about.html">
 
-    <!-- Fonts -->
+    <!-- ── Open Graph ───────────────────────────────────────────────── -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://photography.pratyushdadhich.com/about.html">
+    <meta property="og:title" content="Exhibition - Pratyush Dadhich">
+    <meta property="og:description"
+        content="Spatial Designer, XR Builder, and photographer. This is the visual archive.">
+    <meta property="og:image"
+        content="https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554">
+
+    <!-- ── Favicons ─────────────────────────────────────────────────── -->
+    <link rel="icon" type="image/x-icon" href="assets/img/favicons/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicons/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicons/apple-touch-icon.png">
+    <link rel="manifest" href="assets/img/favicons/site.webmanifest">
+
+    <!-- ── Fonts ────────────────────────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
-    <!-- Scripts for cursor -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+
+    <!-- ── Scripts ──────────────────────────────────────────────────── -->
     <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
+    <link rel="stylesheet" href="assets/css/style.css">
+
     <style>
-        /* Specific overrides for About page */
-        .hud { mix-blend-mode: normal; position: relative; inset: auto; padding: 2.5rem 3rem; }
-        .about-container { max-width: 1200px; margin: 5rem auto; padding: 0 3rem; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
-        .about-title { font-family: var(--font-serif); font-size: 5vw; text-transform: uppercase; line-height: 1; letter-spacing: -0.02em; margin-bottom: 2rem; }
-        .about-text { font-family: var(--font-sans); font-size: 1.1rem; font-weight: 300; line-height: 1.8; opacity: 0.8; margin-bottom: 2rem; }
-        .about-img img { width: 100%; border-radius: 4px; filter: grayscale(0.5); transition: filter 0.5s ease; }
-        .about-img img:hover { filter: grayscale(0); }
-        .contact-info { margin-top: 3rem; opacity: 0.7; font-weight: 300; letter-spacing: 0.1em; line-height: 2; }
+        /* ── About page overrides ──────────────────────────────────── */
+
+        /* Full dark background, no WebGL needed */
+        body {
+            background: #000;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grain stays (inherited from global style.css) */
+
+        /* Cinematic vignette */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* ── Nav ─────────────────────────────────────────────────── */
+        .about-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2.5rem 3rem;
+            mix-blend-mode: difference;
+        }
+
+        /* ── Main layout ─────────────────────────────────────────── */
+        .about-wrapper {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto;
+            gap: 0;
+        }
+
+        /* Left column — text */
+        .about-left {
+            padding: 18vh 5vw 12vh 5vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Right column — image */
+        .about-right {
+            position: relative;
+            overflow: hidden;
+            min-height: 100vh;
+        }
+
+        /* Portrait image fills the right half, with a parallax feel */
+        .about-portrait {
+            position: absolute;
+            inset: 0;
+            background-image: url('https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554');
+            background-size: cover;
+            background-position: center top;
+            filter: grayscale(0.3) brightness(0.8);
+            transition: filter 0.6s ease;
+            will-change: transform;
+        }
+
+        .about-portrait::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, #000 0%, transparent 30%),
+                linear-gradient(to top, #000 0%, transparent 25%);
+        }
+
+        .about-right:hover .about-portrait {
+            filter: grayscale(0) brightness(0.9);
+        }
+
+        /* ── Chapter label ───────────────────────────────────────── */
+        .chapter {
+            font-family: var(--font-sans);
+            font-size: 0.65rem;
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            opacity: 0.4;
+            text-transform: uppercase;
+            margin-bottom: 2.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .chapter::before {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        /* ── Hero title ──────────────────────────────────────────── */
+        .about-title {
+            font-family: var(--font-serif);
+            font-size: clamp(2.5rem, 5vw, 5.5rem);
+            font-weight: 400;
+            line-height: 1.0;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            margin-bottom: 3rem;
+        }
+
+        .about-title em {
+            font-style: italic;
+            opacity: 0.6;
+        }
+
+        /* ── Body text ───────────────────────────────────────────── */
+        .about-text {
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            font-weight: 300;
+            line-height: 1.9;
+            opacity: 0.7;
+            max-width: 38ch;
+            margin-bottom: 1.5rem;
+        }
+
+        /* ── Divider ─────────────────────────────────────────────── */
+        .about-divider {
+            width: 40px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 2.5rem 0;
+        }
+
+        /* ── Tag line ────────────────────────────────────────────── */
+        .about-tagline {
+            font-family: var(--font-serif);
+            font-style: italic;
+            font-size: clamp(1rem, 1.5vw, 1.3rem);
+            line-height: 1.6;
+            opacity: 0.5;
+            max-width: 32ch;
+            margin-bottom: 3rem;
+        }
+
+        /* ── Info grid ───────────────────────────────────────────── */
+        .about-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .meta-item {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 1rem;
+        }
+
+        .meta-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            opacity: 0.3;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .meta-value {
+            font-size: 0.85rem;
+            font-weight: 300;
+            opacity: 0.8;
+            line-height: 1.6;
+        }
+
+        /* ── Contact links ───────────────────────────────────────── */
+        .about-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem 2.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .about-link {
+            font-family: var(--font-sans);
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-decoration: none;
+            color: var(--fg);
+            opacity: 0.5;
+            text-transform: uppercase;
+            position: relative;
+            transition: opacity 0.3s ease;
+        }
+
+        .about-link::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: #fff;
+            transition: width 0.35s ease;
+        }
+
+        .about-link:hover {
+            opacity: 1;
+        }
+
+        .about-link:hover::after {
+            width: 100%;
+        }
+
+        /* ── Bottom bar ──────────────────────────────────────────── */
+        .about-bottom {
+            position: fixed;
+            bottom: 2.5rem;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 3rem;
+            pointer-events: none;
+        }
+
+        .back-link {
+            pointer-events: auto;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: #fff;
+        }
+
+        .about-vol {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            opacity: 0.3;
+        }
+
+        /* ── Responsive ──────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .about-nav {
+                padding: 2rem 1.5rem;
+            }
+
+            .about-wrapper {
+                grid-template-columns: 1fr;
+                grid-template-rows: 45vh auto;
+            }
+
+            .about-right {
+                min-height: 45vh;
+                grid-row: 1;
+            }
+
+            .about-portrait::after {
+                background: linear-gradient(to bottom, transparent 50%, #000 100%);
+            }
+
+            .about-left {
+                grid-row: 2;
+                padding: 4rem 1.5rem 10rem;
+            }
+
+            .about-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .about-bottom {
+                padding: 0 1.5rem;
+            }
+        }
+
+        @media (pointer: coarse) {
+
+            /* Hide custom cursor on touch */
+            .cursor-dot,
+            .cursor-ring {
+                display: none;
+            }
+        }
     </style>
 </head>
 
 <body>
     <!-- Custom Cursor -->
-    <div class="cursor-dot"></div>
-    <div class="cursor-ring"></div>
+    <div class="cursor-dot" aria-hidden="true"></div>
+    <div class="cursor-ring" aria-hidden="true"></div>
 
-    <!-- Minimal Overlay UI -->
-    <div class="hud">
-        <header class="hud-header">
-            <h1 class="logo">PRATYUSH DADHICH</h1>
-            <nav>
-                <a href="index.html" class="nav-elem">HOME</a>
-                <a href="mailto:prdadhich7@gmail.com" class="nav-elem">INQUIRY</a>
-            </nav>
-        </header>
-    </div>
+    <!-- Navigation -->
+    <nav class="about-nav" aria-label="Site navigation">
+        <span class="logo">
+            <a href="https://photography.pratyushdadhich.com/" style="color:inherit;text-decoration:none;"
+                aria-label="Pratyush Dadhich — Main Portfolio">PRATYUSH DADHICH</a>
+        </span>
+        <div style="display:flex;gap:3rem;">
+            <a href="index.html" class="nav-elem">ARCHIVE</a>
+            <a href="mailto:prdadhich7@gmail.com" class="nav-elem">INQUIRY</a>
+        </div>
+    </nav>
 
-    <main class="about-container">
-        <div class="about-content">
-            <h1 class="about-title" id="reveal-title">MAPPING<br>PERSPECTIVES</h1>
-            <p class="about-text" id="reveal-text">
-                A lens is more than just glass; it's a bridge between reality and emotion. Based in Italy, I focus on capturing the raw, unscripted beauty of the world. 
+    <!-- Main content -->
+    <main class="about-wrapper" id="main-content">
+
+        <!-- Left: text content -->
+        <section class="about-left" aria-label="About Pratyush Dadhich">
+
+            <div class="chapter" id="rv-chapter">Exhibition - The Fluid Archive</div>
+
+            <h1 class="about-title" id="rv-title">
+                Spatial<br>
+                <em>Systems &</em><br>
+                Light
+            </h1>
+
+            <p class="about-text" id="rv-text-1">
+                I'm Pratyush Dadhich - a Spatial Designer and XR Builder based in Italy.
+                When I’m not building immersive tools and systems, I’m out with a camera,
+                looking for the same thing: how light defines space, and what a moment
+                looks like from the inside.
             </p>
-            <p class="about-text" id="reveal-text-2">
-                Whether it's the quiet solitude of a landscape or the vibrant energy of a human connection, my goal is to tell a story that resonates and bends perception.
+
+            <p class="about-text" id="rv-text-2">
+                This archive is the slower half of that practice. No brief, no deadline -
+                just landscapes, strangers, and the occasional perfect hour of light.
+                Whether it’s the quiet of the Dolomiti or the energy of a city street,
+                my goal is to record something that resonates before you can name why.
             </p>
 
-            <div class="contact-info" id="reveal-contact">
-                <p>prdadhich7@gmail.com</p>
-                <p>+39 327 871 1174</p>
-                <br>
-                <a href="https://www.instagram.com/pratyushdadhich/" style="color: white; text-decoration: none; letter-spacing: 0.2em;">INSTAGRAM</a>
+            <div class="about-divider" id="rv-div"></div>
+
+            <p class="about-tagline" id="rv-tagline">
+                "I build spaces for a living. I photograph the ones I can't."
+            </p>
+
+            <div class="about-meta" id="rv-meta">
+                <div class="meta-item">
+                    <div class="meta-label">Based in</div>
+                    <div class="meta-value">Italy</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Archive</div>
+                    <div class="meta-value">Vol. 01 — Est. 2026</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Practice</div>
+                    <div class="meta-value">Landscape · Portrait · Street</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Contact</div>
+                    <div class="meta-value">prdadhich7@gmail.com</div>
+                </div>
             </div>
-        </div>
 
-        <div class="about-img" id="reveal-img">
-            <img src="https://ik.imagekit.io/prdadhich/Images/PhotoGraphyPortfolio/IMG_1798_Lq9jriEIq.JPG?updatedAt=1749805117554" alt="Pratyush Dadhich Portrait">
-        </div>
+            <div class="about-links" id="rv-links">
+                <a href="mailto:prdadhich7@gmail.com" class="about-link">Email</a>
+                <a href="https://www.instagram.com/pratyushdadhich/" target="_blank" rel="noopener"
+                    class="about-link">Instagram</a>
+                <a href="https://x.com/prdadhich" target="_blank" rel="noopener" class="about-link">X</a>
+                <a href="https://github.com/prdadhich" target="_blank" rel="noopener" class="about-link">GitHub</a>
+                <a href="tel:+393278711174" class="about-link">+39 327 871 1174</a>
+            </div>
+
+        </section>
+
+        <!-- Right: full-height portrait -->
+        <aside class="about-right" aria-label="Portrait of Pratyush Dadhich" id="rv-img">
+            <div class="about-portrait" role="img" aria-label="Pratyush Dadhich portrait photograph"></div>
+        </aside>
+
     </main>
 
+    <!-- Bottom navigation bar -->
+    <div class="about-bottom">
+        <a href="index.html" class="back-link">← Return to Archive</a>
+        <span class="about-vol">VOL. I — 2026</span>
+    </div>
+
     <script>
-        // Simple standalone logic for About page (cursor + reveal)
-        const cursorDot = document.querySelector('.cursor-dot');
-        const cursorRing = document.querySelector('.cursor-ring');
-        let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
-        let cursorX = mouseX, cursorY = mouseY;
+        // ── Touch detection ─────────────────────────────────────────────
+        window._isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-        window.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
+        // ── Cursor + smooth scroll ───────────────────────────────────────
+        // Always run — CSS via @media(pointer:coarse) hides elements on touch.
+        // Gating on _isTouch is unreliable: Windows reports maxTouchPoints>0
+        // even on mouse-only machines, killing the cursor entirely on desktop.
+        const dot = document.querySelector('.cursor-dot');
+        const ring = document.querySelector('.cursor-ring');
+        let mX = window.innerWidth / 2, mY = window.innerHeight / 2;
+        let cX = mX, cY = mY;
+        let rX = mX, rY = mY;
 
-        // Initialize Lenis
+        window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
+
         const lenis = new Lenis({ smooth: true });
-        
-        function render(time) {
-            lenis.raf(time);
 
-            cursorX += (mouseX - cursorX) * 0.2;
-            cursorY += (mouseY - cursorY) * 0.2;
-
-            if (cursorDot) cursorDot.style.transform = `translate(${cursorX}px, ${cursorY}px) translate(-50%, -50%)`;
-            if (cursorRing) {
-                const ringX = parseFloat(cursorRing.dataset.x) || mouseX;
-                const ringY = parseFloat(cursorRing.dataset.y) || mouseY;
-                const newRingX = ringX + (mouseX - ringX) * 0.1;
-                const newRingY = ringY + (mouseY - ringY) * 0.1;
-                cursorRing.dataset.x = newRingX;
-                cursorRing.dataset.y = newRingY;
-                cursorRing.style.transform = `translate(${newRingX}px, ${newRingY}px) translate(-50%, -50%)`;
-            }
-            requestAnimationFrame(render);
+        function frame(t) {
+            lenis.raf(t);
+            cX += (mX - cX) * 0.2; cY += (mY - cY) * 0.2;
+            rX += (mX - rX) * 0.1; rY += (mY - rY) * 0.1;
+            if (dot) dot.style.transform = `translate(${cX}px,${cY}px) translate(-50%,-50%)`;
+            if (ring) ring.style.transform = `translate(${rX}px,${rY}px) translate(-50%,-50%)`;
+            requestAnimationFrame(frame);
         }
-        requestAnimationFrame(render);
+        requestAnimationFrame(frame);
 
-        // Elegant Fade In
+        // ── Cinematic scroll-reveal ─────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
-            gsap.fromTo('#reveal-title', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.5, ease: 'power3.out' });
-            gsap.fromTo('#reveal-text, #reveal-text-2', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1.5, ease: 'power3.out', stagger: 0.2, delay: 0.3 });
-            gsap.fromTo('#reveal-contact', { opacity: 0 }, { opacity: 1, duration: 2, delay: 1 });
-            gsap.fromTo('#reveal-img', { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 2, ease: 'power2.out', delay: 0.5 });
+            const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+
+            tl.fromTo('#rv-chapter',
+                { opacity: 0, x: -20 },
+                { opacity: 1, x: 0, duration: 1.2 }, 0.3)
+
+                .fromTo('#rv-title',
+                    { opacity: 0, y: 40, filter: 'blur(8px)' },
+                    { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.8 }, 0.5)
+
+                .fromTo('#rv-text-1, #rv-text-2',
+                    { opacity: 0, y: 20 },
+                    { opacity: 1, y: 0, duration: 1.4, stagger: 0.2 }, 0.9)
+
+                .fromTo('#rv-div',
+                    { scaleX: 0, transformOrigin: 'left center' },
+                    { scaleX: 1, duration: 1.0 }, 1.2)
+
+                .fromTo('#rv-tagline',
+                    { opacity: 0 },
+                    { opacity: 1, duration: 1.6 }, 1.4)
+
+                .fromTo('#rv-meta',
+                    { opacity: 0, y: 15 },
+                    { opacity: 1, y: 0, duration: 1.2 }, 1.6)
+
+                .fromTo('#rv-links',
+                    { opacity: 0 },
+                    { opacity: 1, duration: 1.0 }, 1.9)
+
+                .fromTo('#rv-img',
+                    { opacity: 0, scale: 1.04 },
+                    { opacity: 1, scale: 1, duration: 2.2, ease: 'power2.out' }, 0.2);
+
+            // Subtle parallax on portrait while scrolling (touch-safe)
+            if (!window._isTouch) {
+                const portrait = document.querySelector('.about-portrait');
+                window.addEventListener('scroll', () => {
+                    const y = window.scrollY;
+                    if (portrait) portrait.style.transform = `translateY(${y * 0.15}px)`;
+                }, { passive: true });
+            }
         });
     </script>
 </body>
+
 </html>
