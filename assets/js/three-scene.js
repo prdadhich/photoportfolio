@@ -206,7 +206,7 @@ window.PortfolioScene = class PortfolioScene {
         // ─────────────────────────────────────────────────────────────────────
         const aspect = window.innerWidth / window.innerHeight;
         this.isMobile = aspect < 1.0;
-        this.baseWidth = this.isMobile ? 14 : 26;
+        this.baseWidth = this.isMobile ? 22 : 26;
         this.xSpread = this.isMobile ? 1 : 12;
         this.layoutSpacing = 50;
 
@@ -249,7 +249,10 @@ window.PortfolioScene = class PortfolioScene {
             const offsetX = (archiveIndex % 2 === 0 ? 1 : -1)
                 * (this.xSpread + Math.random() * (this.isMobile ? 2.5 : 6));
             const offsetY = -(archiveIndex + 1) * this.layoutSpacing - (Math.random() * 5);
-            const offsetZ = -archiveIndex * 1.5 + (Math.random() * 4 - 2);
+            // No more cumulative depth crawl — images stay at a consistent distance
+            // const offsetZ = (Math.random() * 6 - 3);
+            const offsetZ = -archiveIndex * .9 + (Math.random() * 4 - 2);
+
             const rotZ = (Math.random() - 0.5) * 0.1;
             const rotY = (Math.random() - 0.5) * 0.35;
             const rotX = (Math.random() - 0.5) * 0.12;
@@ -349,7 +352,9 @@ window.PortfolioScene = class PortfolioScene {
 
             const mesh = pending.mesh;
             const ratio = texture.image.width / texture.image.height;
-            const w = this.baseWidth;
+            // Boost landscape images (+30%) so they fill the narrow phone width better
+            const landscapeFactor = ratio > 1.1 ? 1.3 : 1.0;
+            const w = this.baseWidth * landscapeFactor;
             const h = w / ratio;
 
             // Rebuild geometry with correct aspect ratio
@@ -437,7 +442,7 @@ window.PortfolioScene = class PortfolioScene {
 
         this.camera.position.y = targetY;
         this.camera.position.x = this.isMobile ? 0 : Math.sin(targetY * 0.02) * 1.5;
-        this.camera.position.z = this.isMobile ? 70 : 50 + Math.sin(targetY * 0.015) * 2.5;
+        this.camera.position.z = this.isMobile ? 60 : 50 + Math.sin(targetY * 0.015) * 2.5;
 
         if (this.heroMesh) {
             this.heroMesh.position.y = targetY * 0.5;
@@ -473,28 +478,33 @@ window.PortfolioScene = class PortfolioScene {
 
         const wasMobile = this.isMobile;
         this.isMobile = aspect < 1.0;
-        this.camera.position.z = this.isMobile ? 70 : 50;
+        this.camera.position.z = this.isMobile ? 60 : 50;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Main update — called every frame from main.js render loop
     // ─────────────────────────────────────────────────────────────────────────
     update(velocity, time, mouseX, mouseY) {
-        // Raycaster — use matchMedia(pointer:coarse) as the touch guard,
-        // same as CSS uses. _isTouch via maxTouchPoints is unreliable on Windows
-        // (reports >0 even on pure mouse machines), silently killing hover effects.
+        // Raycaster — use matchMedia(pointer:coarse) as the touch guard.
         const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-        if (!isCoarsePointer) {
+
+        if (isCoarsePointer) {
+            // MOBILE: No cursor, so we "hover" whatever image is in the center of the screen.
+            // This makes the gallery feel tactile as you scroll.
+            this.pointer.set(0, 0);
+            this.raycaster.setFromCamera(this.pointer, this.camera);
+        } else {
+            // DESKTOP: Traditional mouse hover.
             this.pointer.x = (mouseX / window.innerWidth) * 2 - 1;
             this.pointer.y = -(mouseY / window.innerHeight) * 2 + 1;
             this.raycaster.setFromCamera(this.pointer, this.camera);
         }
 
-        const intersects = isCoarsePointer ? [] : this.raycaster.intersectObjects(this.meshes, false);
+        const intersects = this.raycaster.intersectObjects(this.meshes, false);
         let hoveredMesh = null;
         if (intersects.length > 0) {
             hoveredMesh = intersects[0].object;
-            document.body.classList.add('hovering');
+            if (!isCoarsePointer) document.body.classList.add('hovering');
         } else {
             document.body.classList.remove('hovering');
         }
