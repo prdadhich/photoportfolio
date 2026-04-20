@@ -206,8 +206,8 @@ window.PortfolioScene = class PortfolioScene {
         // ─────────────────────────────────────────────────────────────────────
         const aspect = window.innerWidth / window.innerHeight;
         this.isMobile = aspect < 1.0;
-        this.baseWidth = this.isMobile ? 16 : 26;
-        this.xSpread = this.isMobile ? 2 : 12;
+        this.baseWidth = this.isMobile ? 14 : 26;
+        this.xSpread = this.isMobile ? 1 : 12;
         this.layoutSpacing = 50;
 
         // Archive images start at index 1
@@ -247,7 +247,7 @@ window.PortfolioScene = class PortfolioScene {
             // which sits at y=0. Without +1, archiveIndex=0 gives offsetY≈0,
             // placing the image directly on top of the hero.
             const offsetX = (archiveIndex % 2 === 0 ? 1 : -1)
-                * (this.xSpread + Math.random() * (this.isMobile ? 3 : 6));
+                * (this.xSpread + Math.random() * (this.isMobile ? 2.5 : 6));
             const offsetY = -(archiveIndex + 1) * this.layoutSpacing - (Math.random() * 5);
             const offsetZ = -archiveIndex * 1.5 + (Math.random() * 4 - 2);
             const rotZ = (Math.random() - 0.5) * 0.1;
@@ -437,7 +437,7 @@ window.PortfolioScene = class PortfolioScene {
 
         this.camera.position.y = targetY;
         this.camera.position.x = this.isMobile ? 0 : Math.sin(targetY * 0.02) * 1.5;
-        this.camera.position.z = 50 + (this.isMobile ? 0 : Math.sin(targetY * 0.015) * 2.5);
+        this.camera.position.z = this.isMobile ? 70 : 50 + Math.sin(targetY * 0.015) * 2.5;
 
         if (this.heroMesh) {
             this.heroMesh.position.y = targetY * 0.5;
@@ -473,7 +473,7 @@ window.PortfolioScene = class PortfolioScene {
 
         const wasMobile = this.isMobile;
         this.isMobile = aspect < 1.0;
-        this.camera.position.z = this.isMobile ? 60 : 50;
+        this.camera.position.z = this.isMobile ? 70 : 50;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -588,8 +588,9 @@ window.PortfolioScene = class PortfolioScene {
         if (Math.abs(targetY) < 8) {
             // At the top (hero visible) — show the volume label
             counter.textContent = 'VOL. I';
-        } else if (progress >= 0.97) {
+        } else if (progress >= 0.85) {
             // At the end — show volume label again
+            // Threshold reduced to 0.85 because totalHeight now includes travel padding
             counter.textContent = 'VOL. I — 2026';
         } else {
             // Scrolling through the archive — show live frame position
