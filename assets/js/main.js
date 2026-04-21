@@ -25,14 +25,14 @@ class AppController {
 
     initSmoothScroll() {
         this.lenis = new Lenis({
-            duration: 1.5,
+            duration: 1.2,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             direction: 'vertical',
             gestureDirection: 'vertical',
             smooth: true,
             mouseMultiplier: 1,
-            smoothTouch: false,
-            touchMultiplier: 2,
+            smoothTouch: true,
+            touchMultiplier: 3.5,
             infinite: false,
         });
 

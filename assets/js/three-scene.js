@@ -471,10 +471,21 @@ window.PortfolioScene = class PortfolioScene {
     }
 
     onResize() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const aspect = width / height;
+
+        // Skip massive re-renders for tiny height changes (like mobile URL bar)
+        if (this._lastWidth === width && Math.abs(this._lastHeight - height) < 100) {
+            return;
+        }
+
+        this._lastWidth = width;
+        this._lastHeight = height;
+
         this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(width, height);
 
         const wasMobile = this.isMobile;
         this.isMobile = aspect < 1.0;
